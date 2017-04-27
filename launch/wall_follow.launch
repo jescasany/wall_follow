@@ -1,0 +1,13 @@
+<!--    -->
+<launch>
+    <node pkg="comp4766_a3_mod" type="wall_follow.py" name="wall_follow" output="screen">
+        <param name="follow_offset" value="0.4"/>
+        <param name="follow_advance" value="1.0"/>
+    </node>
+
+    <node pkg="comp4766_a3_mod" type="display_lines.py" name="display_lines_wf" output="screen">
+        <param name="lines_topic" value="/extracted_lines_wf"/>
+        <param name="vis_lines_topic" value="/visualization_lines_wf"/>
+        <param name="vis_scanpoints_topic" value="/visualization_scanpoints_wf"/>
+    </node>
+</launch>

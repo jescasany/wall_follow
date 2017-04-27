@@ -1,0 +1,13 @@
+<!-- extract_single.launch -->
+<launch>
+    <param name = "maximum_range" type="double" value="3.25"/>
+    
+    <!-- los dos nodes que siguen estan copiados de stage_rviz.launch -->
+    <node pkg="stage_ros" type="stageros" name="stage" args="$(find comp4766_a3_world)/world/autolab.world"/>
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find comp4766_a3_mod)/rviz.rviz"/>
+    <!--    -->
+
+    <node pkg="comp4766_a3_mod" type="laser_filter.py" name="laser_filter" output="screen"/>
+    <node pkg="comp4766_a3_mod" type="extract_single_line.py" name="extract_single_line" output="screen"/>
+    <node pkg="comp4766_a3_mod" type="display_lines.py" name="display_lines"/>
+</launch>
