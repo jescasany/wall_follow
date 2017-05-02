@@ -170,75 +170,25 @@ class WallFollow:
         """
         # Create an ExtractedLines object and initialize some fields in the header.
         lines = ExtractedLines()
-        lines.header.frame_id = '/laser'
+        lines.header.frame_id = '/odom'
         #lines.header.frame_id = '/base_laser_link'
         lines.header.stamp = rospy.Time.now()
         # Create our big list of index pairs.  Each pair gives the start and end
         # index which specifies a contiguous set of data points in 'scan'.
-        n = len(black_board.scan) 
-#        black_board.filtered_scan, singularities = self.moving_window_filtro(black_board.scan, tolerance=0.2, n_neighbors=1)
-#        print 'singularities: ', singularities
-        L = []
-#        for i in range(len(singularities)-1):
-#            L.append((singularities[i], singularities[i+1]))
-        # Place (0, n-1) in the list which represents the complete list of scan
-        # points.
-        L.append((0, n-1))
-        # We'll keep track of the iteration count with 'I' just for debug purposes.
-        I = 0
-        # The big loop.  At each step we process the sublist stored in the first
-        # pair of indices in L.
-        while len(L) != 0:
-            I += 1
+        n = len(black_board.scan)
+        end_index = n-1
+        done_si = False
+        for i in range(n):
+            if black_board.scan[i] < black_board.maximum_range and black_board.scan[i] != 0.0:
+                if not done_si:
+                    start_index = i
+                    done_si = True
+                end_index = i
+        line = self.fit_line(black_board.scan, start_index, end_index, black_board.maximum_range)
     
-            # Get the first sublist, i will refer to the starting index and j
-            # the final index.
-            (i, j) = L.pop(0)
-    
-            line = self.fit_line(black_board.scan, i, j, black_board.maximum_range)
-    
-            if line is None:
-                continue
-            # Find the worst fit point.  We will consider a point to be the
-            # worst fit if it represents a local maximum in distance from the line.
-            # That is, its absolute distance to the line must be greater than that
-            # of its two neighbours.  First compute an array of distances.  We will
-            # not consider the first or last min_points_per_line / 2 
-            # points.  So the length of this array is the following:
-            nDistances = j - i + 1 - black_board.min_points_per_line
-            distances = [0] * nDistances # Fill with zeros
-            mppl_2 = black_board.min_points_per_line / 2
-            # distIndex is the index into distances
-            # laserIndex is the index into the laser scan
-            for distIndex in range(nDistances):
-                laserIndex = i + mppl_2 + distIndex
-                # Compute the orthogonal distance to the line, d
-                rho = black_board.scan[laserIndex]
-                theta = black_board.angle_min + laserIndex * black_board.angle_increment
-                d = abs(rho * math.cos(theta - line.alpha) - line.r)
-                distances[distIndex] = d
-            # Now check for the worst fit point using these distances.
-            worstLaserIndex = -1 
-            worstDistance = 0
-            for laserIndex in range(i + mppl_2 + 1, j - mppl_2 - 1):
-                if black_board.scan[laserIndex] > black_board.maximum_range:
-                    continue
-                distIndex = laserIndex - i - mppl_2
-                if distances[distIndex] >= distances[distIndex - 1] and \
-                   distances[distIndex] >= distances[distIndex + 1] and \
-                   distances[distIndex] > worstDistance:
-                    worstLaserIndex = laserIndex
-                    worstDistance = distances[distIndex]
-    
-            if worstDistance < black_board.orthog_distance_threshold:
-                # We have dealt with this sublist.  Add it to lines.
-                lines.lines.append(line)
-            else:
-                # Split this sublist into two and add both back into L.
-                self.insert_sublist_if_long(L, 0, (i, worstLaserIndex-1))
-                self.insert_sublist_if_long(L, 1, (worstLaserIndex+1, j))
-    
-        print lines
+        if line is not None:
+            lines.lines.append(line)
+            print lines
         # Normally the merge step would follow...
         
         #raw_input('Enter to continue')
@@ -250,11 +200,6 @@ class WallFollow:
         rospy.Subscriber('/extracted_lines', ExtractedLines, self.display_callback, queue_size=10)
             
         rospy.sleep(1)
-        
-    def insert_sublist_if_long(self, L, insert_position, (start_index, stop_index)):
-        """Insert the given index pair into L if it is sufficiently long."""
-        if stop_index - start_index + 1 > black_board.min_points_per_line:
-            L.insert(insert_position, (start_index, stop_index))
         
     def is_visited(self):
         return 1
@@ -346,6 +291,7 @@ class WallFollow:
         return ExtractedLine(r, alpha, firstScanPoint, lastScanPoint)
         
     def create_lines_marker(self, lines):
+        pdb.set_trace()
         marker_lines = Marker()
     
         # Get the pairs of points that comprise the endpoints for all lines
@@ -385,21 +331,17 @@ class WallFollow:
     
     def create_scanpoints_marker(self, lines):
         marker_points = Marker()
-    
         # Initialize basic fields of the marker
         marker_points.header.frame_id = lines.header.frame_id
         marker_points.header.stamp = rospy.Time()
         marker_points.id = 0
         marker_points.type = Marker.POINTS
         marker_points.action = Marker.ADD
-    
         # The marker's pose is at (0,0,0) with no rotation.
         marker_points.pose.orientation.w = 1
-    
         # Set point width
         marker_points.scale.x = 0.10
         marker_points.scale.y = 0.10
-    
         # Add the scan points
         marker_points.points = []
         n = len(lines.lines)
@@ -433,7 +375,7 @@ class WallFollow:
         The points are positioned at a fixed distance 'q' from the point on the
         line closest to the origin (where the orthogonal ray hits the line).
         """
-        #pdb.set_trace()
+        pdb.set_trace()
         # Distance from the closest point on the line to the origin at which to
         # place the endpoints.
         q = 5
@@ -444,7 +386,6 @@ class WallFollow:
         for i in range(n):
             r = lines.lines[i].r
             alpha = lines.lines[i].alpha
-    
             # Each point is a vector sum from the origin to the point on the line
             # closest to the origin + a vector along the line in either direction.
             point1 = Point(r*math.cos(alpha) + q*math.cos(alpha+math.pi/2), \
@@ -455,7 +396,7 @@ class WallFollow:
                            0)
             points.append(point1)
             points.append(point2)
-            print points
+            #print points
         return points
 
     def display_callback(self, lines):
