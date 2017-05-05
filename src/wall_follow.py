@@ -2,15 +2,15 @@
 """
 ROS Node to implement wall following.
 
-The algorithm is based on line extraction.  The lines should have already been
-published on topic 'extracted_lines'.  The overall idea is to follow the wall
-on the robot's right.  We will follow that wall by setting a goal position that
+The algorithm is based on line extraction. The lines should have already been
+published on topic 'extracted_lines'. The overall idea is to follow the wall
+on the robot's right. We will follow that wall by setting a goal position that
 is pushed forward along the wall by parameter 'follow-advance' and offset
-inwards from the wall by distance 'follow-offset'.  As soon as a wall in front
+inwards from the wall by distance 'follow-offset'. As soon as a wall in front
 of the robot becomes closer, the algorithm will switch to following that wall
 using the same strategy.  In either case, we simply react to the closest wall
 as long as it lies within a certain angular range which prevents the robot from
-reacting to walls to the left.  Thus there is no need for any explicit logic to
+reacting to walls to the left. Thus there is no need for any explicit logic to
 detect corners or transition from one wall to the other.
 
 Andrew Vardy
